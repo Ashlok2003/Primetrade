@@ -1,0 +1,59 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: primetrade-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: primetrade
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - primetrade-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: primetrade-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/primetrade
+      - JWT_SECRET=your_super_secret_jwt_key_here_change_this_in_production
+    depends_on:
+      - mongo
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - primetrade-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: primetrade-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - primetrade-network
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  primetrade-network:
+    driver: bridge
